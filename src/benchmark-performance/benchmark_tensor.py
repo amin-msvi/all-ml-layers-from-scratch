@@ -1,4 +1,4 @@
-from tensor import Tensor
+from core.tensor import Tensor
 
 import numpy as np
 rng = np.random.default_rng(7)

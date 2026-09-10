@@ -1,6 +1,6 @@
 import numpy as np
 
-from tensor import Tensor
+from core.tensor import Tensor
 
 
 def test_center_and_scale():

@@ -3,7 +3,7 @@ import operator
 import numpy as np
 import pytest
 
-from tensor import Tensor
+from core.tensor import Tensor
 
 
 @pytest.mark.parametrize(
