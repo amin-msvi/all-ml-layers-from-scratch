@@ -8,6 +8,8 @@ from .activations import (
 )
 from .layers import Linear, Dropout, Sequential
 
+from .losses import MSELoss, CrossEntropyLss, BinaryCrossEntropyLoss
+
 __all__ = [
     "Tensor",
     "Sigmoid",
@@ -18,4 +20,7 @@ __all__ = [
     "Linear",
     "Dropout",
     "Sequential",
+    "MSELoss",
+    "CrossEntropyLoss",
+    "BinaryCrossEntropyLoss",
 ]
