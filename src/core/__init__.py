@@ -6,6 +6,7 @@ from .activations import (
     GELU,
     Softmax,
 )
+from .layers import Linear, Dropout, Sequential
 
 __all__ = [
     "Tensor",
@@ -14,4 +15,7 @@ __all__ = [
     "Tanh",
     "GELU",
     "Softmax",
+    "Linear",
+    "Dropout",
+    "Sequential",
 ]
