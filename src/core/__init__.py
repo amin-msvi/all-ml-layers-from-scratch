@@ -8,7 +8,16 @@ from .activations import (
 )
 from .layers import Linear, Dropout, Sequential
 
-from .losses import MSELoss, CrossEntropyLss, BinaryCrossEntropyLoss
+from .losses import MSELoss, CrossEntropyLoss, BinaryCrossEntropyLoss
+
+from .dataloader import (
+    Dataset,
+    DataLoader,
+    TensorDataset,
+    RandomHorizontalFlip,
+    RandomCrop,
+    Compose,
+)
 
 __all__ = [
     "Tensor",
@@ -23,4 +32,10 @@ __all__ = [
     "MSELoss",
     "CrossEntropyLoss",
     "BinaryCrossEntropyLoss",
+    "Dataset",
+    "DataLoader",
+    "TensorDataset",
+    "RandomHorizontalFlip",
+    "RandomCrop",
+    "Compose",
 ]
