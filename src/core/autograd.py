@@ -126,6 +126,8 @@ This pattern enables the chain rule to flow gradients through complex computatio
 """
 
 
+import inspect
+
 import numpy as np
 rng = np.random.default_rng(7)
 from typing import Optional, List, Tuple
@@ -1626,7 +1628,25 @@ def enable_autograd(quiet=False):
 
         return result
 
-    def backward(self, gradient=None, retain_graph=False):
+    def _get_caller_tensor_names():
+        """Map tensors to the variable names visible where backward() was called."""
+        variable_names = {}
+        current_frame = inspect.currentframe()
+        backward_frame = current_frame.f_back if current_frame is not None else None
+        caller_frame = backward_frame.f_back if backward_frame is not None else None
+
+        if caller_frame is not None:
+            for scope in (caller_frame.f_globals, caller_frame.f_locals):
+                for name, value in scope.items():
+                    if isinstance(value, Tensor):
+                        names = variable_names.setdefault(id(value), [])
+                        if name not in names:
+                            names.append(name)
+
+        del caller_frame, backward_frame, current_frame
+        return variable_names
+
+    def backward(self, gradient=None, retain_graph=False, show_graph=False):
         """
         Compute gradients via backpropagation.
 
@@ -1647,6 +1667,8 @@ def enable_autograd(quiet=False):
                 backward to free memory. Set True if you need to call backward()
                 multiple times on the same graph (e.g., for higher-order gradients).
                 Matches PyTorch's retain_graph parameter.
+            show_graph: If True, prints the computation graph before backpropagation.
+                Tensor names are included when they are visible in the caller's scope.
 
         **Example:**
         >>> x = Tensor([2.0], requires_grad=True)
@@ -1662,6 +1684,13 @@ def enable_autograd(quiet=False):
         """
         # Ensure gradient attributes exist
         _ensure_grad_attrs(self)
+
+        if show_graph:
+            print("Computation graph:")
+            print("--------------------\n")
+            _print_computation_graph(
+                self, variable_names=_get_caller_tensor_names()
+            )
 
         # Only compute gradients if required
         if not _get_requires_grad(self):
@@ -1716,6 +1745,49 @@ def enable_autograd(quiet=False):
             # to grow linearly with the number of training steps.
             if not retain_graph:
                 self._grad_fn = None
+
+    def _print_computation_graph(
+        tensor, prefix="", is_last=True, seen=None, variable_names=None, is_root=True
+    ):
+        """Print the computation graph from an output tensor to its inputs."""
+        if seen is None:
+            seen = set()
+        if variable_names is None:
+            variable_names = {}
+
+        grad_fn = getattr(tensor, "_grad_fn", None)
+        operation = type(grad_fn).__name__ if grad_fn is not None else "Leaf"
+        connector = "" if is_root else ("└── " if is_last else "├── ")
+        names = variable_names.get(id(tensor), [])
+        name = f"name={','.join(names)} " if names else ""
+
+        if id(tensor) in seen:
+            print(f"{prefix}{connector}{operation} {name}shape={tensor.shape} [shared]")
+            return
+
+        seen.add(id(tensor))
+
+        print(
+            f"{prefix}{connector}{operation} "
+            f"{name}"
+            f"shape={tensor.shape} "
+            f"requires_grad={getattr(tensor, 'requires_grad', False)}"
+        )
+
+        if grad_fn is None:
+            return
+
+        parents = [parent for parent in grad_fn.saved_tensors if isinstance(parent, Tensor)]
+        child_prefix = prefix if is_root else prefix + ("    " if is_last else "│   ")
+        for index, parent in enumerate(parents):
+            _print_computation_graph(
+                parent,
+                prefix=child_prefix,
+                is_last=index == len(parents) - 1,
+                seen=seen,
+                variable_names=variable_names,
+                is_root=False,
+            )
 
     def zero_grad(self):
         """
