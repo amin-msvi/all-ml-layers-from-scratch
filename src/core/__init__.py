@@ -40,8 +40,13 @@ from .autograd import (
     SoftmaxBackward,
     GELUBackward,
     MSEBackward,
-    BCEBackward,
-    
+    BCEBackward,   
+)
+
+from .optimizers import (
+    SGD,
+    Adam,
+    AdamW,
 )
 
 __all__ = [
