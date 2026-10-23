@@ -49,6 +49,12 @@ from .optimizers import (
     AdamW,
 )
 
+from .training import (
+    CosineSchedule,
+    clip_grad_norm,
+    Trainer,
+)
+
 __all__ = [
     "Tensor",
     "Sigmoid",
@@ -89,4 +95,7 @@ __all__ = [
     "GELUBackward",
     "MSEBackward",
     "BCEBackward",
+    "CosineSchedule",
+    "clip_grad_norm",
+    "Trainer",
 ]
