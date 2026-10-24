@@ -479,6 +479,8 @@ class MatmulBackward(Function):
                 # grad_B = outer(a, grad_output): (k,) x (n,) -> (k, n)
                 grad_b = np.outer(a.data, grad_output)
 
+        return grad_a, grad_b
+
 
 class TransposeBackward(Function):
     """
@@ -777,6 +779,42 @@ class SumBackward(Function):
         return None,
 
 
+class MaxBackward(Function):
+    """
+    Gradient computation for tensor max.
+
+    **Mathematical Rule:** If z = max(a), then ∂z/∂a[i] = 1 where a[i] is the max, 0 elsewhere
+
+    **Key Insight:** Only the winning element gets the gradient (like ReLU's mask).
+    If several elements tie for the max, they split it evenly.
+    """
+
+    def __init__(self, tensor, axis=None, keepdims=False):
+        super().__init__(tensor)
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def apply(self, grad_output):
+        """
+        Compute gradients for max operation.
+
+        EXAMPLE:
+        >>> X = Tensor([1, 5, 2], requires_grad=True)
+        >>> Y = X.max()  # Y = 5
+        >>> # During backward: grad_output = 1
+        >>> # grad_X = [0, 1, 0]
+        """
+        tensor, = self.saved_tensors
+
+        if isinstance(tensor, Tensor) and tensor.requires_grad:
+            max_val = np.max(tensor.data, axis=self.axis, keepdims=True)
+            mask = (tensor.data == max_val).astype(np.float32)
+            mask = mask / mask.sum(axis=self.axis, keepdims=True)  # split ties
+            # Same as SumBackward: put the reduced axis back before broadcasting
+            if self.axis is not None and not self.keepdims:
+                grad_output = np.expand_dims(grad_output, axis=self.axis)
+            return mask * grad_output,
+        return None,
 
 
 class ReLUBackward(Function):
@@ -806,7 +844,8 @@ class ReLUBackward(Function):
         if isinstance(tensor, Tensor) and tensor.requires_grad:
             # ReLU gradient: 1 if x > 0, else 0
             relu_grad = (tensor.data > 0).astype(np.float32)
-            return grad_output * relu_grad
+            return grad_output * relu_grad,
+        return None,
 
 
 class SigmoidBackward(Function):
@@ -844,7 +883,7 @@ class SigmoidBackward(Function):
         if isinstance(tensor, Tensor) and tensor.requires_grad:
             # σ'(x) = σ(x) * (1 - σ(x))
             sigmoid_grad = self.output_data * (1 - self.output_data)
-            return grad_output * sigmoid_grad
+            return grad_output * sigmoid_grad,
 
         return None,
 
@@ -1303,6 +1342,7 @@ def enable_autograd(quiet=False):
     _original_rdiv = Tensor.__rtruediv__
     _original_getitem = Tensor.__getitem__
     _original_sum = Tensor.sum
+    _original_max = Tensor.max
 
     # These methods are also guaranteed from Module 01 - trust Single Tensor Class
     _original_matmul = Tensor.matmul
@@ -1628,6 +1668,30 @@ def enable_autograd(quiet=False):
 
         return result
 
+    def mean_op(self, axis=None, keepdims=False):
+        """
+        Mean with gradient tracking.
+
+        mean = sum / count, so it reuses the tracked sum and division:
+        the graph gets a SumBackward and a DivBackward, no new Function needed.
+        """
+        total = self.sum(axis=axis, keepdims=keepdims)
+        count = self.data.size / total.data.size
+        return total / count
+
+    def max_op(self, axis=None, keepdims=False):
+        """Max with gradient tracking. Delegates to the original .max() from Module 01."""
+        _ensure_grad_attrs(self)
+
+        result = _original_max(self, axis=axis, keepdims=keepdims)
+        _ensure_grad_attrs(result)
+
+        if _get_requires_grad(self):
+            result.requires_grad = True
+            result._grad_fn = MaxBackward(self, axis=axis, keepdims=keepdims)
+
+        return result
+
     def _get_caller_tensor_names():
         """Map tensors to the variable names visible where backward() was called."""
         variable_names = {}
@@ -1734,17 +1798,30 @@ def enable_autograd(quiet=False):
         if grad_fn is not None:
             grads = grad_fn.apply(gradient)
 
-            # Recursively call backward on parent tensors
+            # Recursively call backward on parent tensors.
+            # retain_graph=True here: a tensor used twice (e.g. w * w) is reached
+            # once per path, so its _grad_fn must survive until every path is done.
             for tensor, grad in zip(grad_fn.saved_tensors, grads):
                 if isinstance(tensor, Tensor) and tensor.requires_grad and grad is not None:
-                    tensor.backward(grad, retain_graph=retain_graph)
+                    tensor.backward(grad, retain_graph=True)
 
             # Release computation graph to free memory (matches PyTorch's default)
             # Why: The graph stores references to all intermediate tensors. Without
             # cleanup, these references prevent garbage collection, causing memory
             # to grow linearly with the number of training steps.
+            # Only the root gets here with retain_graph=False, after all paths are done.
             if not retain_graph:
-                self._grad_fn = None
+                _release_graph(self)
+
+    def _release_graph(tensor):
+        """Drop _grad_fn on every node below tensor, so intermediates can be freed."""
+        grad_fn = getattr(tensor, '_grad_fn', None)
+        if grad_fn is None:
+            return
+        tensor._grad_fn = None
+        for parent in grad_fn.saved_tensors:
+            if isinstance(parent, Tensor):
+                _release_graph(parent)
 
     def _print_computation_graph(
         tensor, prefix="", is_last=True, seen=None, variable_names=None, is_root=True
@@ -1812,6 +1889,8 @@ def enable_autograd(quiet=False):
     Tensor.transpose = tracked_transpose
     Tensor.reshape = tracked_reshape
     Tensor.sum = sum_op
+    Tensor.mean = mean_op
+    Tensor.max = max_op
     Tensor.backward = backward
     Tensor.zero_grad = zero_grad
 

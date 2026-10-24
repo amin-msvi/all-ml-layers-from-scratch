@@ -64,7 +64,7 @@ from core.layers import Linear
 from core.losses import MSELoss, CrossEntropyLoss
 from core.optimizers import SGD, AdamW
 
-from core.autograd import enable_autograd
+from core.autograd import enable_autograd, no_grad
 enable_autograd()
 
 # Constants for learning rate scheduling defaults
@@ -303,9 +303,17 @@ class Trainer:
 
         # Handle remaining accumulated gradients
         if accumulated_loss > 0:
+            # The last window has fewer than accumulation_steps batches, but each one
+            # was still divided by accumulation_steps. Rescale so it's a true mean.
+            leftover = (batch_idx + 1) % accumulation_steps
+            scale = accumulation_steps / leftover
+            for param in self.model.parameters():
+                if param.grad is not None:
+                    param.grad = param.grad * scale
             self._optimizer_update()
-            total_loss += accumulated_loss
+            total_loss += accumulated_loss * scale
             num_batches += 1
+            self.step += 1
 
         avg_loss = total_loss / max(num_batches, 1)
         self.history['train_loss'].append(avg_loss)
@@ -349,9 +357,10 @@ class Trainer:
         num_batches = 0
 
         for inputs, targets in dataloader:
-            # Forward pass only
-            outputs = self.model.forward(inputs)
-            loss = self.loss_fn.forward(outputs, targets)
+            # Forward pass only. no_grad: no backward here, so don't build a graph
+            with no_grad():
+                outputs = self.model.forward(inputs)
+                loss = self.loss_fn.forward(outputs, targets)
 
             total_loss += loss.data
             num_batches += 1
@@ -466,16 +475,26 @@ class Trainer:
         """Extract optimizer state for checkpointing."""
         state = {}
         state['lr'] = self.optimizer.lr
+        state['step_count'] = self.optimizer.step_count
         if hasattr(self.optimizer, 'has_momentum') and self.optimizer.has_momentum():
             momentum_state = self.optimizer.get_momentum_state()
             if momentum_state is not None:
                 state['momentum_buffers'] = momentum_state
+        # Adam/AdamW: first and second moments (step_count above drives bias correction)
+        if hasattr(self.optimizer, 'm_buffers'):
+            state['m_buffers'] = list(self.optimizer.m_buffers)
+            state['v_buffers'] = list(self.optimizer.v_buffers)
         return state
 
     def _set_optimizer_state(self, state):
         """Restore optimizer state from checkpoint."""
         if 'lr' in state:
             self.optimizer.lr = state['lr']
+        if 'step_count' in state:
+            self.optimizer.step_count = state['step_count']
+        if 'm_buffers' in state and hasattr(self.optimizer, 'm_buffers'):
+            self.optimizer.m_buffers = list(state['m_buffers'])
+            self.optimizer.v_buffers = list(state['v_buffers'])
         if 'momentum_buffers' in state:
             if hasattr(self.optimizer, 'has_momentum') and self.optimizer.has_momentum():
                 self.optimizer.set_momentum_state(state['momentum_buffers'])

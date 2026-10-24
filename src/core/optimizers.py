@@ -215,7 +215,7 @@ class SGD(Optimizer):
             >>> new_optimizer = SGD(params, lr=0.01, momentum=0.9)
             >>> new_optimizer.set_momentum_state(state)
         """
-        if state is None or not self.has_momentum:
+        if state is None or not self.has_momentum():
             return
 
         if len(state) != len(self.momentum_buffers):
@@ -250,7 +250,7 @@ class SGD(Optimizer):
     
                 # Update momentum: v = momentum * v_prev + grad
                 self.momentum_buffers[i] = self.momentum * self.momentum_buffers[i] + grad_data
-                grad_data = self.momentum_buffers
+                grad_data = self.momentum_buffers[i]
 
             # Update parameter: param = param - lr * grad
             param.data = param.data - self.lr * grad_data

@@ -319,8 +319,9 @@ class Sequential:
             self.layers = list(layers[0])
         else:
             self.layers = list(layers)
+        self.training = True
 
-    def forward(self, x, training=True):
+    def forward(self, x, training=None):
         """Forward pass through all layers sequentially.
 
         Passes training=True/False to layers that support it (e.g. Dropout),
@@ -328,7 +329,11 @@ class Sequential:
         This  lets you switch between training and eval mode with one flag:
             output = model.forward(x, training=False)  # eval: Dropout disabled
             output = model.forward(x, training=True)   # train: Dropout active
+        If training isn't passed, it uses self.training, so setting
+        model.training = False (what Trainer.evaluate does) also works.
         """
+        if training is None:
+            training = self.training
         for layer in self.layers:
             try:
                 x = layer.forward(x, training=training)
@@ -336,7 +341,7 @@ class Sequential:
                 x = layer.forward(x)
         return x
 
-    def __call__(self, x, training=True):
+    def __call__(self, x, training=None):
         """Allow model to be called like a function."""
         return self.forward(x, training=training)
 

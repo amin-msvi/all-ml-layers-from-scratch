@@ -1,3 +1,8 @@
+import numpy as np
+
+from core.optimizers import Optimizer, SGD
+from core.tensor import Tensor
+
 def test_unit_extract_gradient():
     """Test _extract_gradient handles Tensor and ndarray gradients."""
     print("Unit Test: Gradient Extraction...")

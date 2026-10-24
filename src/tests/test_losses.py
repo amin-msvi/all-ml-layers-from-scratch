@@ -1,3 +1,15 @@
+import numpy as np
+
+from core.losses import (
+    MSELoss,
+    CrossEntropyLoss,
+    BinaryCrossEntropyLoss,
+    log_softmax,
+    EPSILON,
+    rng
+)
+from core.tensor import Tensor
+
 def test_unit_log_softmax():
     """🧪 Test log_softmax numerical stability and correctness."""
     print("🧪 Unit Test: Log-Softmax...")
@@ -23,7 +35,7 @@ def test_unit_log_softmax():
     print("✅ log_softmax works correctly with numerical stability!")
 
 
-ef test_unit_mse_loss():
+def test_unit_mse_loss():
     """🧪 Test MSELoss implementation and properties."""
     print("🧪 Unit Test: MSE Loss...")
 
