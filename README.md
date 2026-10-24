@@ -1,5 +1,5 @@
 # all-ML-layers-from-scratch
-Building every abstraction layers in ML from scratch without agentic coding. Broadly it has three phases: 
+Building every abstraction layers in ML from scratch without any agentic coding (except HTML tutorials at /docs). Broadly it has three phases: 
 
 1. **Foundations:** Back-bone of a ML-framework
 
