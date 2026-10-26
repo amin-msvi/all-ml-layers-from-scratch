@@ -56,6 +56,15 @@ from .training import (
     Trainer,
 )
 
+from .tokenization import (
+    Tokenizer,
+    CharTokenizer,
+    BPETokenizer,
+    create_tokenizer,
+    tokenize_dataset,
+    analyze_tokenization,
+)
+
 __all__ = [
     "Tensor",
     "Sigmoid",
@@ -103,4 +112,10 @@ __all__ = [
     "CosineSchedule",
     "clip_grad_norm",
     "Trainer",
+    "Tokenizer",
+    "CharTokenizer",
+    "BPETokenizer",
+    "create_tokenizer",
+    "tokenize_dataset",
+    "analyze_tokenization",
 ]
