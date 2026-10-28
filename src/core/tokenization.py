@@ -220,7 +220,7 @@ class CharTokenizer(Tokenizer):
         return ''.join(chars)
 
 
-def BPETokenizer(Tokenizer):
+class BPETokenizer(Tokenizer):
     """
     Byte Pair Encoding (BPE) tokenizer that learns subword units.
 
@@ -237,7 +237,7 @@ def BPETokenizer(Tokenizer):
         self.vocab = []
         self.merges = []  # List of (pair, new_token) merges
         self.token_to_id = {}
-        self.it_to_token = {}
+        self.id_to_token = {}
 
     def _get_word_tokens(self, word: str) -> List[str]:
         """
@@ -356,6 +356,12 @@ def BPETokenizer(Tokenizer):
         then runs a greedy merge loop using _count_byte_pairs() to find the
         best pair and _merge_pair() to apply it.
 
+        APPROACH:
+        1. Build initial character vocabulary from corpus words
+        2. Loop: count pairs, find best, merge it, add to vocab
+        3. Stop when vocab reaches target size or no pairs remain
+        4. Build final mappings
+
         EXAMPLE:
         >>> corpus = ["hello", "hello", "help"]
         >>> tokenizer = BPETokenizer(vocab_size=20)
@@ -366,7 +372,6 @@ def BPETokenizer(Tokenizer):
 
         if vocab_size:
             self.vocab_size = vocab_size
-
 
         # Count word frequencies and initialize character vocabulary
         word_freq = Counter(corpus)
@@ -386,12 +391,12 @@ def BPETokenizer(Tokenizer):
         self.merges = []
 
         while len(self.vocab) < self.vocab_size:
-            pair_counts = _count_byte_pairs(word_tokens, word_freq)
+            pair_counts = self._count_byte_pairs(word_tokens, word_freq)
             if not pair_counts:
                 break
 
             best_pair = pair_counts.most_common(1)[0][0]
-            merged_token = _merge_pair(word_tokens, best_pair)
+            merged_token = self._merge_pair(word_tokens, best_pair)
             self.vocab.append(merged_token)
             self.merges.append(best_pair)
 
