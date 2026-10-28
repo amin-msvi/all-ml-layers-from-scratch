@@ -65,6 +65,14 @@ from .tokenization import (
     analyze_tokenization,
 )
 
+from .embeddings import (
+    EmbeddingBackward,
+    Embedding,
+    PositionalEncoding,
+    create_sinusoidal_embeddings,
+    EmbeddingLayer,
+)
+
 __all__ = [
     "Tensor",
     "Sigmoid",
@@ -118,4 +126,10 @@ __all__ = [
     "create_tokenizer",
     "tokenize_dataset",
     "analyze_tokenization",
+    "EmbeddingBackward",
+    "Embedding",
+    "PositionalEncoding",
+    "create_sinusoidal_embeddings",
+    "EmbeddingLayer",
 ]
+    
