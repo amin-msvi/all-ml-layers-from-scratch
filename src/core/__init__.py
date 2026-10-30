@@ -73,6 +73,12 @@ from .embeddings import (
     EmbeddingLayer,
 )
 
+
+from .attention import (
+    scaled_dot_product_attention,
+    MultiHeadAttention,
+)
+
 __all__ = [
     "Tensor",
     "Sigmoid",
@@ -131,5 +137,6 @@ __all__ = [
     "PositionalEncoding",
     "create_sinusoidal_embeddings",
     "EmbeddingLayer",
+    "scaled_dot_product_attention",
+    "MultiHeadAttention",
 ]
-    
