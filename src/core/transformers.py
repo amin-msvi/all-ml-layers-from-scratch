@@ -345,7 +345,7 @@ class GPT:
         self.max_seq_len = max_seq_len
 
         # Embedding layer
-        self.embedding_layer = Embeddinglayer(vocab_size, embed_dim, max_seq_len)
+        self.embedding_layer = EmbeddingLayer(vocab_size, embed_dim, max_seq_len)
 
         # Stack of transformer blocks
         self.blocks = []

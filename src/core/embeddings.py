@@ -127,7 +127,7 @@ class EmbeddingBackward(Function):
 
             # Scatter gradients back to embedding weights
             # np.add.at accumulates gradients for repeated indices
-            indices_flat = self.indices.dota.astype(int).flatten()
+            indices_flat = self.indices.data.astype(int).flatten()
             grad_output_reshaped = grad_output.reshape(-1, grad_output.shape[-1])
 
             np.add.at(grad_weight, indices_flat, grad_output_reshaped)
@@ -269,8 +269,8 @@ class PositionalEncoding:
         pos_embeddings = self.position_embeddings[:seq_len]  # (seq_len, embed_dim)
 
         # Reshape to add batch dimension: (1, seq_len, embed_dim)
-        pos_data = pos_embeddings.data[np.newaxis, :, :]
-        pos_embeddings_batched = Tensor(pos_data)
+        # Tensor reshape keeps the table in the graph, so its rows receive gradients
+        pos_embeddings_batched = pos_embeddings.reshape(1, seq_len, embed_dim)
 
         # Add positional information
         result = x + pos_embeddings_batched
